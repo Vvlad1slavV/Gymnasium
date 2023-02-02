@@ -54,6 +54,7 @@ class Continuous_MountainCarEnv(gym.Env):
     |-----|--------------------------------------|------|-----|--------------|
     | 0   | position of the car along the x-axis | -Inf | Inf | position (m) |
     | 1   | velocity of the car                  | -Inf | Inf | position (m) |
+    | 2   | angle of the car                     | -3   | 3   | angle (rad)  |
 
     ## Action Space
 
@@ -109,12 +110,18 @@ class Continuous_MountainCarEnv(gym.Env):
         "render_fps": 30,
     }
 
-    def __init__(self, render_mode: Optional[str] = None, goal_velocity=0):
+    def __init__(
+        self, 
+        render_mode: 
+        Optional[str] = None,
+        goal_velocity=0
+    ):
         self.min_action = -1.0
         self.max_action = 1.0
         self.min_position = -1.2
         self.max_position = 0.6
         self.max_speed = 0.07
+        self.max_angle = 3
         self.goal_position = (
             0.45  # was 0.5 in gymnasium, 0.45 in Arnaud de Broissia's version
         )
@@ -122,10 +129,10 @@ class Continuous_MountainCarEnv(gym.Env):
         self.power = 0.0015
 
         self.low_state = np.array(
-            [self.min_position, -self.max_speed], dtype=np.float32
+            [self.min_position, -self.max_speed, -self.max_angle], dtype=np.float32
         )
         self.high_state = np.array(
-            [self.max_position, self.max_speed], dtype=np.float32
+            [self.max_position, self.max_speed, self.max_angle], dtype=np.float32
         )
 
         self.render_mode = render_mode
@@ -172,7 +179,9 @@ class Continuous_MountainCarEnv(gym.Env):
             reward = 100.0
         reward -= math.pow(action[0], 2) * 0.1
 
-        self.state = np.array([position, velocity], dtype=np.float32)
+        angle = self._angle(position)
+
+        self.state = np.array([position, velocity, angle], dtype=np.float32)
 
         if self.render_mode == "human":
             self.render()
@@ -183,7 +192,8 @@ class Continuous_MountainCarEnv(gym.Env):
         # Note that if you use custom reset bounds, it may lead to out-of-bound
         # state/observations.
         low, high = utils.maybe_parse_reset_bounds(options, -0.6, -0.4)
-        self.state = np.array([self.np_random.uniform(low=low, high=high), 0])
+        x = self.np_random.uniform(low=low, high=high)
+        self.state = np.array([x, 0, self._angle(x)])
 
         if self.render_mode == "human":
             self.render()
@@ -191,6 +201,9 @@ class Continuous_MountainCarEnv(gym.Env):
 
     def _height(self, xs):
         return np.sin(3 * xs) * 0.45 + 0.55
+
+    def _angle(self, pos: float) -> float:
+        return -3*math.sin(3*pos)
 
     def render(self):
         if self.render_mode is None:
